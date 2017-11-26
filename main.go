@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"regexp"
-	//"io"
 	"io/ioutil"
 	"flag"
 	"bufio"
@@ -24,12 +23,13 @@ func parsePattern(str string) (*FindPattern) {
 	var pattern FindPattern
 	pattern.InputStr = str
 	pattern.PrintNum = -1
+	pattern.FindGroupNum = -1
 	if len(ss) == 3 {
-		pattern.FindGroupNum,_ = strconv.Atoi(ss[0])
-		pattern.PrintNum,_ = strconv.Atoi(ss[1])
+		pattern.PrintNum,_ = strconv.Atoi(ss[0])
+		pattern.FindGroupNum,_ = strconv.Atoi(ss[1])
 		pattern.RegexStr = ss[2]
 	} else if len(ss) == 2 {
-		pattern.FindGroupNum,_ = strconv.Atoi(ss[0])
+		pattern.PrintNum,_ = strconv.Atoi(ss[0])
 		pattern.RegexStr = ss[1]
 	} else {
 		pattern.RegexStr = ss[0]
@@ -41,7 +41,6 @@ func parsePattern(str string) (*FindPattern) {
 func main()  {
 	filePath := flag.String("f","file path","file path")
 	flag.Parse()
-	//filePath := "f://cache/test.txt"
 	fmt.Println(*filePath)
 	dat,err := ioutil.ReadFile(*filePath)
 	if err != nil {
@@ -54,13 +53,13 @@ func main()  {
 	regexStr := ""
 
 	for true {
-		regexStr = readConsoleLine()
-		//_, e := fmt.Scanf("%s",&regexStr)
-		if strings.EqualFold("",regexStr) {
+		regexStr = strings.TrimSpace(readConsoleLine())
+		if "" == regexStr {
 			fmt.Println("input regex")
+			continue
 		}
 		fmt.Println("regexStr=", regexStr)
-		find(text,regexStr)
+		findF(&text,parsePattern(regexStr))
 		fmt.Println("input regex")
 	}
 }
@@ -75,23 +74,24 @@ func readConsoleLine() (string) {
 	return regexStr
 }
 
-
-func find(text string, pattern string) {
-	reg,_ := regexp.Compile(pattern)
-	result := reg.FindAllStringSubmatch(text,-1)
+func findF(text *string,findPattern *FindPattern) {
+	reg,_ := regexp.Compile(findPattern.RegexStr)
+	result := reg.FindAllStringSubmatch(*text,findPattern.PrintNum)
 	for i,s := range result {
 		fmt.Println("-----------",i,"-------------")
-		if len(s) == 1 {
-			fmt.Println(s[0])
-		} else {
+
+		if findPattern.FindGroupNum <= 0 {
 			fmt.Println(s[0])
 			for j, g := range s {
 				if 0 == j {
 					continue
 				}
-				fmt.Println("group ",j,": ",g)
+				fmt.Println("group ", j, ": ", g)
+			}
+		} else {
+			if len(s) >= findPattern.FindGroupNum {
+				fmt.Println("group ", findPattern.FindGroupNum, ": ", s[findPattern.FindGroupNum])
 			}
 		}
-
 	}
 }
