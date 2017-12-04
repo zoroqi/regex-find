@@ -11,47 +11,80 @@ import (
 	"strconv"
 )
 
-type FindPattern struct {
-	InputStr string
-	FindGroupNum int
-	PrintNum int
-	RegexStr string
+type testModel struct {
+	InputStr     string
+	FindGroupNum []int
+	PrintNum     int
+	RegexStr     string
 }
 
-func parsePattern(str string) (*FindPattern) {
-	ss := strings.SplitN(str," ",3)
-	var pattern FindPattern
-	pattern.InputStr = str
-	pattern.PrintNum = -1
-	pattern.FindGroupNum = -1
-	if len(ss) == 3 {
-		pattern.PrintNum,_ = strconv.Atoi(ss[0])
-		pattern.FindGroupNum,_ = strconv.Atoi(ss[1])
-		pattern.RegexStr = ss[2]
-	} else if len(ss) == 2 {
-		pattern.PrintNum,_ = strconv.Atoi(ss[0])
-		pattern.RegexStr = ss[1]
+func testModelParseParams(str string) (*testModel) {
+	ss := strings.SplitN(str, "r:", 2)
+
+	var testModel testModel
+	testModel.InputStr = str
+	testModel.PrintNum = -1
+	testModel.FindGroupNum = make([]int, 0, 5)
+	if len(ss) == 1 {
+		testModel.RegexStr = ss[0]
 	} else {
-		pattern.RegexStr = ss[0]
+		testModel.RegexStr = ss[1]
+		ps := strings.SplitN(ss[0], " ", 2)
+		if len(ps) == 2 {
+			testModel.PrintNum, _ = strconv.Atoi(ps[0])
+			groupNums := strings.Split(ps[1], ",")
+			for _, gns := range groupNums {
+				gns, e := strconv.Atoi(strings.TrimSpace(gns))
+				if e != nil {
+					continue
+				}
+				testModel.FindGroupNum = append(testModel.FindGroupNum, gns)
+			}
+		} else {
+			testModel.PrintNum, _ = strconv.Atoi(ss[0])
+		}
 	}
-	return &pattern
+
+	return &testModel
 }
 
+func modelFunc(model string) func(*string, string) {
+	switch model {
+	case "test":
+		return func(text *string, input string) {
+			findF(text, testModelParseParams(input))
+		}
+	}
+	return nil
+}
 
-func main()  {
-	filePath := flag.String("f","file path","file path")
+func main() {
+	filePath := flag.String("f", "", "file path")
+	model := flag.String("m", "test", "excute model")
+	//model := flag.StringVar
 	flag.Parse()
+	if "" == *filePath {
+		return
+	}
+
+	fmt.Println("file path: ", *filePath, " model: ", *model)
+
+	dat, err := ioutil.ReadFile(*filePath)
 	fmt.Println(*filePath)
-	dat,err := ioutil.ReadFile(*filePath)
 	if err != nil {
-		fmt.Println("file path error",err)
+		fmt.Println("file path error", err)
 		return
 	}
 
 	text := string(dat)
+
+	mof := modelFunc(*model)
+	if nil == mof {
+		fmt.Println("model not found")
+		return
+	}
 	fmt.Println("input regex:")
 	regexStr := ""
-
 	for true {
 		regexStr = strings.TrimSpace(readConsoleLine())
 		if "" == regexStr {
@@ -59,7 +92,7 @@ func main()  {
 			continue
 		}
 		fmt.Println("regexStr=", regexStr)
-		findF(&text,parsePattern(regexStr))
+		mof(&text, regexStr)
 		fmt.Println("input regex")
 	}
 }
@@ -74,14 +107,13 @@ func readConsoleLine() (string) {
 	return regexStr
 }
 
-func findF(text *string,findPattern *FindPattern) {
-	reg,_ := regexp.Compile(findPattern.RegexStr)
-	result := reg.FindAllStringSubmatch(*text,findPattern.PrintNum)
-	for i,s := range result {
-		fmt.Println("-----------",i,"-------------")
-
-		if findPattern.FindGroupNum <= 0 {
-			fmt.Println(s[0])
+func findF(text *string, findPattern *testModel) {
+	reg, _ := regexp.Compile(findPattern.RegexStr)
+	result := reg.FindAllStringSubmatch(*text, findPattern.PrintNum)
+	for i, s := range result {
+		fmt.Println("-----------", i, "-------------")
+		fmt.Println(s[0])
+		if 0 == len(findPattern.FindGroupNum) {
 			for j, g := range s {
 				if 0 == j {
 					continue
@@ -89,8 +121,10 @@ func findF(text *string,findPattern *FindPattern) {
 				fmt.Println("group ", j, ": ", g)
 			}
 		} else {
-			if len(s) >= findPattern.FindGroupNum {
-				fmt.Println("group ", findPattern.FindGroupNum, ": ", s[findPattern.FindGroupNum])
+			for _, gn := range findPattern.FindGroupNum {
+				if len(s) >= gn {
+					fmt.Println("group ", gn, ": ", s[gn])
+				}
 			}
 		}
 	}
