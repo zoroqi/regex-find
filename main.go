@@ -11,17 +11,17 @@ import (
 	"strconv"
 )
 
-type testModel struct {
+type InputParam struct {
 	InputStr     string
 	FindGroupNum []int
 	PrintNum     int
 	RegexStr     string
 }
 
-func testModelParseParams(str string) (*testModel) {
+func parseInput(str string) (*InputParam) {
 	ss := strings.SplitN(str, "r:", 2)
 
-	var testModel testModel
+	var testModel InputParam
 	testModel.InputStr = str
 	testModel.PrintNum = -1
 	testModel.FindGroupNum = make([]int, 0, 5)
@@ -52,7 +52,11 @@ func modelFunc(model string) func(*string, string) {
 	switch model {
 	case "test":
 		return func(text *string, input string) {
-			findF(text, testModelParseParams(input))
+			testModel(text, parseInput(input))
+		}
+	case "line":
+		return func(text *string, input string) {
+			lineModel(text, parseInput(input))
 		}
 	}
 	return nil
@@ -107,13 +111,19 @@ func readConsoleLine() (string) {
 	return regexStr
 }
 
-func findF(text *string, findPattern *testModel) {
-	reg, _ := regexp.Compile(findPattern.RegexStr)
-	result := reg.FindAllStringSubmatch(*text, findPattern.PrintNum)
+func testModel(text *string, param *InputParam) {
+	reg, _ := regexp.Compile(param.RegexStr)
+	var printNum int
+	if param.PrintNum > 20 || param.PrintNum < 1 {
+		printNum = 20
+	} else {
+		printNum = param.PrintNum
+	}
+	result := reg.FindAllStringSubmatch(*text, printNum)
 	for i, s := range result {
 		fmt.Println("-----------", i, "-------------")
 		fmt.Println(s[0])
-		if 0 == len(findPattern.FindGroupNum) {
+		if 0 == len(param.FindGroupNum) {
 			for j, g := range s {
 				if 0 == j {
 					continue
@@ -121,11 +131,35 @@ func findF(text *string, findPattern *testModel) {
 				fmt.Println("group ", j, ": ", g)
 			}
 		} else {
-			for _, gn := range findPattern.FindGroupNum {
+			for _, gn := range param.FindGroupNum {
 				if len(s) >= gn {
 					fmt.Println("group ", gn, ": ", s[gn])
 				}
 			}
+		}
+	}
+}
+
+func lineModel(text *string, param *InputParam) {
+	reg, _ := regexp.Compile(param.RegexStr)
+
+	result := reg.FindAllStringSubmatch(*text, param.PrintNum)
+	for _, s := range result {
+		if 0 == len(param.FindGroupNum) {
+			for j, g := range s {
+				if 0 == j {
+					continue
+				}
+				fmt.Print("\t",g)
+			}
+			fmt.Println()
+		} else {
+			for _, gn := range param.FindGroupNum {
+				if len(s) >= gn {
+					fmt.Print("\t",s[gn])
+				}
+			}
+			fmt.Println()
 		}
 	}
 }
