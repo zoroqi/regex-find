@@ -64,7 +64,7 @@ func modelFunc(model string) func(*string, string) {
 
 func main() {
 	filePath := flag.String("f", "", "file path")
-	model := flag.String("m", "test", "excute model")
+	model := flag.String("m", "test", "excute model, test/line")
 	//model := flag.StringVar
 	flag.Parse()
 	if "" == *filePath {
