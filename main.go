@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"github.com/zoroqi/regex-find/internal/app"
+)
 
 func main() {
-	fmt.Println("hello world")
+	if err := app.New().Run(); err != nil {
+		log.Fatalf("Error running application: %v", err)
+	}
 }
