@@ -1,8 +1,9 @@
 package app
 
 import (
-	"github.com/zoroqi/regex-find/internal/editor"
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -11,25 +12,29 @@ import (
 
 // App holds the tview application and its components.
 type App struct {
-	app        *tview.Application
-	regexInput *tview.InputField
-	editorView *tview.TextView
-	editor     *editor.Editor
-	flex       *tview.Flex
+	app             *tview.Application
+	regexInput      *tview.InputField
+	textArea        *tview.TextArea
+	highlightedView *tview.TextView
+	matchView       *tview.TextView
+	flex            *tview.Flex
+	focusables      []tview.Primitive
 }
 
 // New creates and initializes a new TUI application.
 func New() *App {
 	a := &App{
-		app:        tview.NewApplication(),
-		regexInput: tview.NewInputField(),
-		editorView: tview.NewTextView(),
-		editor:     editor.New(),
+		app:             tview.NewApplication(),
+		regexInput:      tview.NewInputField(),
+		textArea:        tview.NewTextArea(),
+		highlightedView: tview.NewTextView(),
+		matchView:       tview.NewTextView(),
 	}
 
 	a.setupUI()
 	a.setupEventHandlers()
-	a.updateHighlight(true) // Initial draw
+	a.focusables = []tview.Primitive{a.regexInput, a.textArea, a.highlightedView, a.matchView}
+	a.updateHighlight()
 
 	return a
 }
@@ -41,26 +46,42 @@ func (a *App) setupUI() {
 	a.regexInput.SetBorder(true)
 	a.regexInput.SetTitle("Regular Expression")
 
-	// Configure Editor View
-	a.editorView.SetBorder(true)
-	a.editorView.SetTitle("Text (Editable)")
-	a.editorView.SetDynamicColors(true)
-	a.editorView.SetScrollable(true)
+	// Configure Text Area
+	a.textArea.SetBorder(true)
+	a.textArea.SetTitle("Text Input")
+
+	// Configure Highlighted View
+	a.highlightedView.SetBorder(true)
+	a.highlightedView.SetTitle("Highlighted")
+	a.highlightedView.SetDynamicColors(true)
+	a.highlightedView.SetScrollable(true)
+
+	// Configure Match View
+	a.matchView.SetBorder(true)
+	a.matchView.SetTitle("Matches")
+	a.matchView.SetScrollable(true)
 
 	// Configure Flex Layout
+	bottomPane := tview.NewFlex().
+		AddItem(a.highlightedView, 0, 1, false).
+		AddItem(a.matchView, 0, 1, false)
+
 	a.flex = tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(a.regexInput, 3, 1, true).
-		AddItem(a.editorView, 0, 1, true)
+		AddItem(a.textArea, 0, 3, true).
+		AddItem(bottomPane, 0, 2, false)
 }
 
 // setupEventHandlers sets up all input handling.
 func (a *App) setupEventHandlers() {
-	// When regex text changes, trigger an update.
 	a.regexInput.SetChangedFunc(func(text string) {
-		a.updateHighlight(false)
+		a.updateHighlight()
 	})
 
-	// App-level key captures for quitting and focus cycling.
+	a.textArea.SetChangedFunc(func() {
+		a.updateHighlight()
+	})
+
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		// Global quit
 		if event.Key() == tcell.KeyCtrlC || event.Key() == tcell.KeyCtrlD {
@@ -68,167 +89,155 @@ func (a *App) setupEventHandlers() {
 			return nil
 		}
 
-		// Handle editor input if it has focus
-		if a.editorView.HasFocus() {
-			switch event.Key() {
-			case tcell.KeyRune:
-				a.editor.InsertRune(event.Rune())
-			case tcell.KeyEnter:
-				a.editor.InsertNewline()
-			case tcell.KeyBackspace, tcell.KeyBackspace2:
-				a.editor.Backspace()
-			case tcell.KeyDelete:
-				a.editor.Delete()
-			case tcell.KeyUp:
-				a.editor.MoveCursorUp()
-			case tcell.KeyDown:
-				a.editor.MoveCursorDown()
-			case tcell.KeyLeft:
-				a.editor.MoveCursorLeft()
-			case tcell.KeyRight:
-				a.editor.MoveCursorRight()
-			case tcell.KeyTab:
-				a.cycleFocus(false)
-				return nil
-			case tcell.KeyBacktab:
-				// Let regexInput handle back-tab if it gets it
-				a.cycleFocus(true)
-				return nil
-			default:
-				return event // Pass other keys through
-			}
-			a.updateHighlight(true)
-			return nil // We've handled the event
+		// Handle Tab and Backtab for focus cycling
+		if event.Key() == tcell.KeyTab {
+			a.cycleFocus(false)
+			return nil
+		}
+		if event.Key() == tcell.KeyBacktab {
+			a.cycleFocus(true)
+			return nil
 		}
 
-		// Handle focus cycling from regexInput
-		if a.regexInput.HasFocus() {
-			switch event.Key() {
-			case tcell.KeyTab:
-				a.cycleFocus(false)
-				return nil
-			case tcell.KeyBacktab:
-				a.cycleFocus(true)
-				return nil
-			}
+		// Scrolling for Highlighted View
+		if a.highlightedView.HasFocus() {
+			return a.handleScrolling(a.highlightedView, event)
+		}
+
+		// Scrolling for Match View
+		if a.matchView.HasFocus() {
+			return a.handleScrolling(a.matchView, event)
 		}
 
 		return event
 	})
 }
 
-// cycleFocus switches focus between the two input widgets.
+// handleScrolling provides vim-like and arrow key scrolling for a TextView.
+func (a *App) handleScrolling(tv *tview.TextView, event *tcell.EventKey) *tcell.EventKey {
+	row, col := tv.GetScrollOffset()
+	switch event.Key() {
+	case tcell.KeyUp:
+		tv.ScrollTo(row-1, col)
+		return nil
+	case tcell.KeyDown:
+		tv.ScrollTo(row+1, col)
+		return nil
+	case tcell.KeyLeft:
+		tv.ScrollTo(row, col-1)
+		return nil
+	case tcell.KeyRight:
+		tv.ScrollTo(row, col+1)
+		return nil
+	}
+
+	switch event.Rune() {
+	case 'k':
+		tv.ScrollTo(row-1, col)
+		return nil
+	case 'j':
+		tv.ScrollTo(row+1, col)
+		return nil
+	case 'h':
+		tv.ScrollTo(row, col-1)
+		return nil
+	case 'l':
+		tv.ScrollTo(row, col+1)
+		return nil
+	}
+
+	return event
+}
+
+// cycleFocus switches focus between the input widgets.
 func (a *App) cycleFocus(reverse bool) {
-	widgets := []tview.Primitive{a.regexInput, a.editorView}
-	for i, widget := range widgets {
+	for i, widget := range a.focusables {
 		if widget.HasFocus() {
-			nextIndex := (i + 1) % len(widgets)
+			nextIndex := (i + 1) % len(a.focusables)
 			if reverse {
-				nextIndex = (i - 1 + len(widgets)) % len(widgets)
+				nextIndex = (i - 1 + len(a.focusables)) % len(a.focusables)
 			}
-			a.app.SetFocus(widgets[nextIndex])
-			a.updateHighlight(true) // Redraw to show/hide cursor
+			a.app.SetFocus(a.focusables[nextIndex])
 			return
 		}
 	}
 }
 
-// updateHighlight performs the regex matching and updates the editor view.
-func (a *App) updateHighlight(isEditorUpdate bool) {
+// updateHighlight performs the regex matching and updates the views.
+func (a *App) updateHighlight() {
 	regexStr := a.regexInput.GetText()
-	text := a.editor.Text()
+	text := a.textArea.GetText()
 
-	// 1. Handle cursor insertion
-	const cursorMarker = "‹‹CURSOR››"
-	textWithCursor := text
-	if a.editorView.HasFocus() {
-		textWithCursor = a.insertCursorMarker(text, cursorMarker)
-	}
-
-	// 2. Handle regex compilation
+	// Compile regex
 	var re *regexp.Regexp
 	var err error
 	if regexStr != "" {
 		re, err = regexp.Compile(regexStr)
 		if err != nil {
-			a.editorView.SetText(tview.Escape(text) + "\n[red]Invalid Regular Expression")
+			a.highlightedView.SetText(tview.Escape(text) + "\n[red]Invalid Regular Expression")
+			a.matchView.SetText("")
 			return
 		}
 	}
 
-	// 3. Get highlighted text
-	highlightedText := a.getHighlightedText(re, textWithCursor, cursorMarker)
-	a.editorView.SetText(highlightedText)
-	if isEditorUpdate {
-		a.editorView.ScrollToHighlight()
-	}
-}
-
-func (a *App) insertCursorMarker(text, marker string) string {
-	cursorX, cursorY := a.editor.Cursor()
-	lines := strings.Split(text, "\n")
-
-	// Clamp cursor to be safe
-	if cursorY >= len(lines) {
-		cursorY = len(lines) - 1
-	}
-	if cursorY < 0 {
-		cursorY = 0
-	}
-	line := lines[cursorY]
-	if cursorX > len(line) {
-		cursorX = len(line)
-	}
-	if cursorX < 0 {
-		cursorX = 0
-	}
-
-	// Insert marker into the specific line
-	lines[cursorY] = line[:cursorX] + marker + line[cursorX:]
-
-	return strings.Join(lines, "\n")
-}
-
-func (a *App) getHighlightedText(re *regexp.Regexp, text string, cursorMarker string) string {
-	// Final text to be displayed
-	var final_text string
-
-	// If regex is nil, just escape the text
+	// If no regex, just show plain text and clear matches
 	if re == nil {
-		final_text = tview.Escape(text)
-	} else {
-		// Otherwise, apply highlighting
-		matches := re.FindAllStringIndex(text, -1)
-		if matches == nil {
-			final_text = tview.Escape(text)
-		} else {
-			colors := []string{"[white:green]", "[white:blue]"}
-			var builder strings.Builder
-			lastIndex := 0
+		a.highlightedView.SetText(tview.Escape(text))
+		a.matchView.SetText("")
+		return
+	}
 
-			for i, match := range matches {
-				start, end := match[0], match[1]
-				color := colors[i%len(colors)]
+	matches := re.FindAllStringIndex(text, -1)
+	a.updateHighlightedView(text, matches)
+	a.updateMatchView(text, matches)
+}
 
-				builder.WriteString(tview.Escape(text[lastIndex:start]))
-				builder.WriteString(color)
-				builder.WriteString(tview.Escape(text[start:end]))
-				builder.WriteString("[:-]")
+func (a *App) updateHighlightedView(text string, matches [][]int) {
+	colors := []string{"[white:green]", "[white:blue]"}
+	var builder strings.Builder
+	lastIndex := 0
 
-				lastIndex = end
-			}
-			builder.WriteString(tview.Escape(text[lastIndex:]))
-			final_text = builder.String()
+	for i, match := range matches {
+		start, end := match[0], match[1]
+		color := colors[i%len(colors)]
+
+		builder.WriteString(tview.Escape(text[lastIndex:start]))
+		builder.WriteString(color)
+		builder.WriteString(tview.Escape(text[start:end]))
+		builder.WriteString("[:-]")
+
+		lastIndex = end
+	}
+	builder.WriteString(tview.Escape(text[lastIndex:]))
+	a.highlightedView.SetText(builder.String())
+}
+
+func (a *App) updateMatchView(text string, matches [][]int) {
+	if len(matches) == 0 {
+		a.matchView.SetText("(No matches)")
+		return
+	}
+
+	var builder strings.Builder
+	const maxLen = 40 // Max length for a match line
+
+	for i, match := range matches {
+		start, end := match[0], match[1]
+		matchText := text[start:end]
+
+		// Escape special characters
+		matchText = strconv.Quote(matchText)
+		matchText = matchText[1 : len(matchText)-1] // Remove quotes from strconv.Quote
+
+		// Truncate
+		if len(matchText) > maxLen {
+			matchText = matchText[:maxLen/2-2] + ".... " + matchText[len(matchText)-(maxLen/2-2):]
 		}
+
+		builder.WriteString(fmt.Sprintf("%d: %s\n", i, matchText))
 	}
 
-	// Replace the cursor marker with actual tview tags
-	if cursorMarker != "" && a.editorView.HasFocus() {
-		// Use a placeholder for empty space under cursor
-		final_text = strings.Replace(final_text, tview.Escape(cursorMarker), "[::r] [-::]", 1)
-	}
-
-	return final_text
+	a.matchView.SetText(builder.String())
 }
 
 // Run starts the tview application.
