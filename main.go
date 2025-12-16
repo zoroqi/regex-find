@@ -14,6 +14,16 @@ import (
 func main() {
 	filePath := flag.String("file", "", "Path to a file to load.")
 	useClipboard := flag.Bool("clipboard", false, "Read initial text from the system clipboard.")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "A TUI tool for interactively developing and testing regular expressions.\n\n")
+		fmt.Fprintf(os.Stderr, "Input can be provided from a file (--file), clipboard (--clipboard), or stdin.\n")
+		fmt.Fprintf(os.Stderr, "Example: cat my_text.log | %s\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flag.PrintDefaults()
+	}
+
 	flag.Parse()
 
 	var initialText string
