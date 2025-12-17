@@ -19,7 +19,7 @@ func TestGenerateExportCustom(t *testing.T) {
 				{"a b", "a", "b"},
 				{"c d", "c", "d"},
 			},
-			expected: "a-b\nc-d",
+			expected:    "a-b\nc-d",
 			expectError: false,
 		},
 		{
@@ -28,7 +28,7 @@ func TestGenerateExportCustom(t *testing.T) {
 			matches: [][]string{
 				{"- a b", "a", "b"},
 			},
-			expected: "b:a\n\ta",
+			expected:    "b:a\n\ta",
 			expectError: false,
 		},
 		{
@@ -39,7 +39,7 @@ func TestGenerateExportCustom(t *testing.T) {
 				{"b", "b"},
 			},
 			// The function adds its own newline between matches, so we expect a blank line
-			expected: "a\n\nb\n",
+			expected:    "a\n\nb\n",
 			expectError: false,
 		},
 		{
@@ -52,8 +52,27 @@ func TestGenerateExportCustom(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:   "No matches",
-			format: "$1",
+			name:   "Reversed order",
+			format: "$2 $1 $3",
+			matches: [][]string{
+				{"a b", "a", "b"},
+				{"c d", "c", "d"},
+			},
+			expected:    "b a $3\nd c $3",
+			expectError: false,
+		},
+		{
+			name:   "nested $ signs",
+			format: "$1-$2",
+			matches: [][]string{
+				{"a b", "a$2", "b"},
+			},
+			expected:    "a$2-b",
+			expectError: false,
+		},
+		{
+			name:        "No matches",
+			format:      "$1",
 			matches:     [][]string{},
 			expected:    "",
 			expectError: false,

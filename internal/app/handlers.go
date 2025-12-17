@@ -230,21 +230,37 @@ func (a *App) generateExportCustom(format string) (string, error) {
 		return "", fmt.Errorf("custom format string cannot be empty")
 	}
 
+	regexGroupSeq := regexp.MustCompile(`\$(\d+)`)
+	regexGroup := regexGroupSeq.FindAllStringSubmatch(format, -1)
+	groupSeq := make([]int, len(regexGroup))
+	for i, g := range regexGroup {
+		num, err := strconv.Atoi(g[1])
+		if err != nil {
+			return "", fmt.Errorf("invalid group number in format: %s", g[0])
+		}
+		groupSeq[i] = num
+	}
+
 	// Replace common escape sequences
-	processedFormat := strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(format)
+	processedFormat := regexGroupSeq.ReplaceAllString(strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(format), "%s")
 
 	var result strings.Builder
 	for i, match := range a.matches {
 		if i > 0 {
 			result.WriteString("\n")
 		}
-		line := processedFormat
-		// TODO 使用替換方案, 存在一個漏洞, 如果在一號分組文本中包含了 "$2", 會導致錯誤替換.
-		for j, group := range match {
-			placeholder := fmt.Sprintf("$%d", j)
-			line = strings.ReplaceAll(line, placeholder, group)
+		args := make([]any, len(groupSeq))
+		for j, g := range groupSeq {
+			if g >= 0 && g < len(match) {
+				args[j] = match[g]
+			} else {
+				// TODO 暫時沒有想好是使用空字符串還是原樣輸出 `$n`, 當前選擇後者.
+				// Sublime Text 是使用空字符串.
+				// 原樣輸出可以快速發現 format 寫錯了, 或正則寫錯了.
+				args[j] = fmt.Sprintf("$%d", g)
+			}
 		}
-		result.WriteString(line)
+		result.WriteString(fmt.Sprintf(processedFormat, args...))
 	}
 	return result.String(), nil
 }
