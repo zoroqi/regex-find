@@ -77,6 +77,24 @@ func TestGenerateExportCustom(t *testing.T) {
 			expected:    "",
 			expectError: false,
 		},
+		{
+			name:   "Format string with percentage sign",
+			format: "$1 is 100%",
+			matches: [][]string{
+				{"a b", "a"},
+			},
+			expected:    "a is 100%",
+			expectError: false,
+		},
+		{
+			name:   "Format string with fmt verb",
+			format: "$1 gives %s",
+			matches: [][]string{
+				{"a b", "a"},
+			},
+			expected:    "a gives %s",
+			expectError: false,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -241,8 +241,12 @@ func (a *App) generateExportCustom(format string) (string, error) {
 		groupSeq[i] = num
 	}
 
-	// Replace common escape sequences
-	processedFormat := regexGroupSeq.ReplaceAllString(strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(format), "%s")
+	// First, escape any literal '%' characters so Sprintf doesn't interpret them.
+	tempFormat := strings.ReplaceAll(format, "%", "%%")
+	// Next, handle common escape sequences.
+	tempFormat = strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(tempFormat)
+	// Finally, replace the $N placeholders with %s. This is safe now.
+	processedFormat := regexGroupSeq.ReplaceAllString(tempFormat, "%s")
 
 	var result strings.Builder
 	for i, match := range a.matches {
