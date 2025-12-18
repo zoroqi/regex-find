@@ -2,10 +2,11 @@ package app
 
 // Page Names
 const (
-	MainPage   = "main"
-	HelpPage   = "help"
-	ExportPage = "export"
-	ResultPage = "result"
+	MainPage            = "main"
+	RegexHelpPage       = "regex_help"
+	KeybindingsHelpPage = "keybindings_help"
+	ExportPage          = "export"
+	ResultPage          = "result"
 )
 
 // Widget Titles
@@ -52,15 +53,16 @@ const (
 	HelpKeybindings = `[yellow]KEYBINDINGS:
 
 [green]F1[white]:           Show this help modal
+[green]F2[white]:           Show regex pattern help
 [green]Ctrl+E[white]:       Show export options
 [green]Tab / Shift+Tab[white]: Cycle focus between windows
 [green]Ctrl+C / Ctrl+D[white]: Quit the application
-[green]ESC[white]:          Close this modal`
+[green]ESC[white]:          Close help or modals`
 
 	HelpScrolling = `[yellow]SCROLLING (in 'Highlighted' and 'Matches' windows):
 
 - [green]Arrow Keys[white]: Scroll up, down, left, right
 - [green]h, j, k, l[white]:  Vim-style scrolling (left, down, up, right)`
 
-	HintHelp = "F1 Help"
+	HintHelp = "F1 Helps | F2 Regex Help | Ctrl+E Export | Ctrl+C Quit"
 )

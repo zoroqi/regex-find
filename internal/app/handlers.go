@@ -47,6 +47,11 @@ func (a *App) updateHighlight() {
 	a.updateHighlightedView(text, a.matchIndices)
 
 	a.matches = re.FindAllStringSubmatch(text, -1)
+	if len(a.matches) > 0 {
+		a.lastMatch = a.matches[0][0]
+	} else {
+		a.lastMatch = ""
+	}
 	a.updateMatchView(a.matches)
 }
 
@@ -168,6 +173,7 @@ func (a *App) handleExport() {
 	}
 
 	a.showResultModal("Export successful!", false)
+	a.updateHistory()
 }
 
 func (a *App) generateExportJSONAll() ([]byte, error) {

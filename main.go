@@ -11,9 +11,12 @@ import (
 	"golang.design/x/clipboard"
 )
 
+const historyEnvVar = "REGEX_FIND_HISTORY_FILE"
+
 func main() {
 	filePath := flag.String("file", "", "Path to a file to load.")
 	useClipboard := flag.Bool("clipboard", false, "Read initial text from the system clipboard.")
+	historyFile := flag.String("history-file", "", fmt.Sprintf("Path to the history file. Overrides the %s environment variable.", historyEnvVar))
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
@@ -25,6 +28,12 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// Determine history file path
+	historyPath := *historyFile
+	if historyPath == "" {
+		historyPath = os.Getenv(historyEnvVar)
+	}
 
 	var initialText string
 
@@ -56,9 +65,19 @@ func main() {
 		initialText = string(bytes)
 	}
 
-	appInstance := app.New(initialText)
+	appInstance, err := app.New(initialText, historyPath)
+	if err != nil {
+		log.Fatalf("Error initializing application: %v", err)
+	}
+
 	if err := appInstance.Run(); err != nil {
 		log.Fatalf("Error running application: %v", err)
+	}
+
+	// Save history on exit
+	appInstance.UpdateHistoryWithCurrentRegex()
+	if err := appInstance.SaveHistory(); err != nil {
+		log.Printf("Warning: could not save history: %v", err)
 	}
 
 	fmt.Println(appInstance.GetRegexInput())

@@ -7,8 +7,37 @@ import (
 
 // setupEventHandlers sets up all input handling.
 func (a *App) setupEventHandlers() {
+	// --- Regex Input Field specific handlers ---
 	a.regexInput.SetChangedFunc(func(text string) {
+		// Reset history navigation on manual input
+		a.historyIndex = -1
 		a.updateHighlight()
+	})
+
+	a.regexInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyUp:
+			if len(a.history) > 0 {
+				if a.historyIndex < len(a.history)-1 {
+					a.historyIndex++
+					a.regexInput.SetText(a.history[a.historyIndex].Regex)
+				}
+			}
+			return nil
+		case tcell.KeyDown:
+			if a.historyIndex > 0 {
+				a.historyIndex--
+				a.regexInput.SetText(a.history[a.historyIndex].Regex)
+			} else if a.historyIndex == 0 {
+				a.historyIndex = -1
+				a.regexInput.SetText("")
+			}
+			return nil
+		case tcell.KeyEnter:
+			a.updateHighlight()
+			return nil
+		}
+		return event
 	})
 
 	a.textArea.SetChangedFunc(func() {
@@ -21,8 +50,23 @@ func (a *App) setupEventHandlers() {
 
 	// Set global input capture for app-wide events
 	a.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// If RegexHelpPage is visible, it gets priority for some keys
+		if a.showHelp {
+			if event.Key() == tcell.KeyF2 || event.Key() == tcell.KeyEsc {
+				a.pages.HidePage(RegexHelpPage)
+				a.showHelp = false
+				return nil
+			}
+			// Let the help view's own capture handle scrolling
+			a.helpView.InputHandler()(event, func(p tview.Primitive) {
+				a.app.SetFocus(p)
+			})
+			return nil
+		}
+
+		// If a form or modal is active, let it handle its own events.
+		// The F1 modal has its own input capture. The export form also captures input.
 		if a.exportForm.HasFocus() {
-			// Let the form handle its own events
 			return event
 		}
 
@@ -31,7 +75,11 @@ func (a *App) setupEventHandlers() {
 			a.app.Stop()
 			return nil
 		case tcell.KeyF1:
-			a.pages.ShowPage(HelpPage)
+			a.pages.ShowPage(KeybindingsHelpPage)
+			return nil
+		case tcell.KeyF2:
+			a.pages.ShowPage(RegexHelpPage)
+			a.showHelp = true
 			return nil
 		case tcell.KeyCtrlE:
 			a.pages.ShowPage(ExportPage)
