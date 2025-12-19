@@ -24,13 +24,20 @@ type App struct {
 	highlightedMatchLines []int      // Store line numbers for each match in highlighted view
 	matchViewLines        []int      // Store line numbers for each match in match view
 	currentMatchIndex     int        // For navigating between matches
+
+	// UI components for modal pages
 	exportForm            *tview.Form
+	historyView           *HistoryView // Instance of the history view
+	keybindingsModal      *tview.Modal
+	exportPage            *tview.Flex
+	historyPageFlex       *tview.Flex
 
 	// History and Help state
 	historyFilePath string
 	history         []HistoryItem
 	historyIndex    int
 	showHelp        bool
+	showHistory     bool
 	lastMatch       string
 }
 

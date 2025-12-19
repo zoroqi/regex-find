@@ -5,6 +5,7 @@ const (
 	MainPage            = "main"
 	RegexHelpPage       = "regex_help"
 	KeybindingsHelpPage = "keybindings_help"
+	HistoryPage         = "history_page"
 	ExportPage          = "export"
 	ResultPage          = "result"
 )
@@ -64,5 +65,5 @@ const (
 - [green]Arrow Keys[white]: Scroll up, down, left, right
 - [green]h, j, k, l[white]:  Vim-style scrolling (left, down, up, right)`
 
-	HintHelp = "F1 Helps | F2 Regex Help | Ctrl+E Export | Ctrl+C Quit"
+	HintHelp = "F1 Helps | F2 Regex Help | F3 History | Ctrl+E Export | Ctrl+C Quit"
 )

@@ -48,22 +48,42 @@ func (a *App) setupUI() {
 		AddItem(bottomPane, 0, 2, false).
 		AddItem(statusBar, 1, 0, false)
 
-	// --- Create Pages ---
-
-	// Main application page
+	// --- Create Main Page ---
 	a.pages.AddPage(MainPage, a.flex, true, true)
 
+	// --- Initialize Modal Components (but don't show them) ---
+
 	// F1 Help Page (Keybindings)
-	keybindingsModal := a.createHelpModal()
-	a.pages.AddPage(KeybindingsHelpPage, keybindingsModal, true, false)
+	a.keybindingsModal = a.createHelpModal()
 
 	// F2 Help Page (Regex)
 	a.setupHelpPage()
-	a.pages.AddPage(RegexHelpPage, a.helpView, true, false)
+
+	// F3 History Page
+	a.historyView = NewHistoryView(a)
+	a.historyView.SetOnSelect(func(regex string) {
+		a.regexInput.SetText(regex)
+		a.modalPages.RemovePage(HistoryPage) // Use modalPages
+		a.showHistory = false                 // Update state
+		a.app.SetFocus(a.regexInput)          // Return focus to regex input
+		a.updateHighlight()                   // Trigger regex re-evaluation with selected history item
+	})
+	a.historyView.SetOnClose(func() {
+		a.modalPages.RemovePage(HistoryPage) // Use modalPages
+		a.showHistory = false                 // Update state
+		a.app.SetFocus(a.regexInput)          // Return focus to regex input
+	})
+	a.historyPageFlex = tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(a.historyView, 0, 8, true). // Use the HistoryView primitive directly
+			AddItem(nil, 0, 1, false), 0, 8, true).
+		AddItem(nil, 0, 1, false)
 
 	// Export Page
 	a.exportForm = a.createExportForm()
-	exportPage := tview.NewFlex().
+	a.exportPage = tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().
@@ -71,9 +91,9 @@ func (a *App) setupUI() {
 			AddItem(a.exportForm, 80, 0, true).
 			AddItem(nil, 0, 1, false), 0, 1, true).
 		AddItem(nil, 0, 1, false)
-	a.pages.AddPage(ExportPage, exportPage, true, false)
 
 	// Modal pages holder (for popups over everything)
+	// This now only contains the main page initially.
 	a.modalPages.AddPage(MainPage, a.pages, true, true)
 }
 
@@ -103,12 +123,10 @@ func (a *App) createHelpModal() *tview.Modal {
 	modal := tview.NewModal().SetText(helpText)
 	modal.SetBorder(true).SetTitle(TitleHelp)
 	modal.SetBackgroundColor(tcell.ColorDefault)
-	modal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyF1 {
-			a.pages.HidePage(KeybindingsHelpPage)
-			return nil
-		}
-		return event
+	// Input capture is now handled globally in events.go, so local capture is less needed.
+	// The global handler will remove the page.
+	modal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		a.modalPages.RemovePage(KeybindingsHelpPage)
 	})
 	return modal
 }
@@ -140,7 +158,7 @@ func (a *App) createExportForm() *tview.Form {
 		AddInputField(LabelFilePath, "", 40, nil, nil).
 		AddButton(ButtonExport, a.handleExport).
 		AddButton(ButtonCancel, func() {
-			a.pages.HidePage(ExportPage)
+			a.modalPages.RemovePage(ExportPage) // Use modalPages
 		})
 
 	form.SetBorder(true).SetTitle(TitleExportOptions).SetTitleAlign(tview.AlignLeft)
