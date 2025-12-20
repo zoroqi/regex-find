@@ -99,12 +99,7 @@ func TestGenerateExportCustom(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a minimal App instance to call the method
-			a := &App{
-				matches: tc.matches,
-			}
-
-			result, err := a.generateExportCustom(tc.format)
+			result, err := GenerateExportCustom(tc.matches, tc.format)
 
 			if tc.expectError {
 				if err == nil {
@@ -117,6 +112,82 @@ func TestGenerateExportCustom(t *testing.T) {
 				if result != tc.expected {
 					t.Errorf("Expected result:\n---\n%s\n---\nGot:\n---\n%s\n---", tc.expected, result)
 				}
+			}
+		})
+	}
+}
+
+func TestSearch(t *testing.T) {
+	testCases := []struct {
+		name        string
+		regex       string
+		text        string
+		wantIndices int
+		wantMatches int
+		expectError bool
+	}{
+		{
+			name:        "Basic match",
+			regex:       "a",
+			text:        "aba",
+			wantIndices: 2,
+			wantMatches: 2,
+			expectError: false,
+		},
+		{
+			name:        "No match",
+			regex:       "z",
+			text:        "aba",
+			wantIndices: 0,
+			wantMatches: 0,
+			expectError: false,
+		},
+		{
+			name:        "Invalid regex",
+			regex:       "[",
+			text:        "aba",
+			wantIndices: 0,
+			wantMatches: 0,
+			expectError: true,
+		},
+		{
+			name:        "Empty regex",
+			regex:       "",
+			text:        "aba",
+			wantIndices: 0,
+			wantMatches: 0,
+			expectError: false,
+		},
+		{
+			name:        "Capture groups",
+			regex:       "(a)(b)",
+			text:        "ab",
+			wantIndices: 1,
+			wantMatches: 1,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, indices, matches, err := Search(tc.regex, tc.text)
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Expected error, got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if len(indices) != tc.wantIndices {
+				t.Errorf("Expected %d indices, got %d", tc.wantIndices, len(indices))
+			}
+			if len(matches) != tc.wantMatches {
+				t.Errorf("Expected %d matches, got %d", tc.wantMatches, len(matches))
 			}
 		})
 	}

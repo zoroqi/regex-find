@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"github.com/rivo/tview"
-	"time"
 )
 
 // App holds the tview application and its components.
@@ -34,8 +33,6 @@ type App struct {
 
 	// History and Help state
 	historyFilePath string
-	history         []HistoryItem
-	historyIndex    int
 	showHelp        bool
 	showHistory     bool
 	lastMatch       string
@@ -60,12 +57,11 @@ func New(initialText string, historyPath string) (*App, error) {
 		helpView:          tview.NewTextView(),
 		currentMatchIndex: -1, // No match selected initially
 		historyFilePath:   historyPath,
-		history:           history.Patterns,
-		historyIndex:      -1, // -1 means current input, not from history
 	}
 
 	a.textArea.SetText(initialText, false)
 	a.setupUI()
+	a.historyView.InitData(history.Patterns)
 	a.setupEventHandlers()
 	a.focusables = []tview.Primitive{a.regexInput, a.textArea, a.highlightedView, a.matchView}
 	a.updateHighlight()
@@ -89,7 +85,7 @@ func (a *App) GetRegexInput() string {
 
 // SaveHistory persists the current history to the file.
 func (a *App) SaveHistory() error {
-	return SaveHistory(a.historyFilePath, History{Patterns: a.history})
+	return SaveHistory(a.historyFilePath, History{Patterns: a.historyView.GetItems()})
 }
 
 // UpdateHistoryWithCurrentRegex adds the current regex from the input field to the history.
@@ -103,40 +99,5 @@ func (a *App) updateHistory() {
 	if pattern == "" {
 		return
 	}
-
-	// Check if pattern exists
-	foundIndex := -1
-	for i, item := range a.history {
-		if item.Regex == pattern {
-			foundIndex = i
-			break
-		}
-	}
-
-	if foundIndex != -1 {
-		// Move to top
-		item := a.history[foundIndex]
-		a.history = append(a.history[:foundIndex], a.history[foundIndex+1:]...)
-		item.Count++
-		item.Timestamp = time.Now().Unix()
-		item.FirstMatch = a.lastMatch
-		a.history = append([]HistoryItem{item}, a.history...)
-	} else {
-		// Add as new item
-		newItem := HistoryItem{
-			Regex:      pattern,
-			FirstMatch: a.lastMatch,
-			Timestamp:  time.Now().Unix(),
-			Count:      1,
-		}
-		a.history = append([]HistoryItem{newItem}, a.history...)
-	}
-
-	// Trim history if it's too long
-	if len(a.history) > MaxHistorySize {
-		a.history = a.history[:MaxHistorySize]
-	}
-
-	// Reset history navigation
-	a.historyIndex = -1
+	a.historyView.AddItem(pattern, a.lastMatch)
 }

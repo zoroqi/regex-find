@@ -104,10 +104,57 @@ func NewHistoryView(app *App) *HistoryView {
 	return hv
 }
 
-// SetHistoryData sets the data to be displayed in the history table.
-func (hv *HistoryView) SetHistoryData(data []HistoryItem) {
+// InitData initializes the history data.
+func (hv *HistoryView) InitData(data []HistoryItem) {
 	hv.data = data
-	hv.filterHistory(hv.searchField.GetText()) // Initialize filtered data
+	hv.filterHistory(hv.searchField.GetText())
+}
+
+// AddItem adds a new item to the history or updates an existing one.
+func (hv *HistoryView) AddItem(regex, firstMatch string) {
+	if regex == "" {
+		return
+	}
+
+	foundIndex := -1
+	for i, item := range hv.data {
+		if item.Regex == regex {
+			foundIndex = i
+			break
+		}
+	}
+
+	if foundIndex != -1 {
+		// Move to top
+		item := hv.data[foundIndex]
+		hv.data = append(hv.data[:foundIndex], hv.data[foundIndex+1:]...)
+		item.Count++
+		item.Timestamp = time.Now().Unix()
+		item.FirstMatch = firstMatch
+		hv.data = append([]HistoryItem{item}, hv.data...)
+	} else {
+		// Add as new item
+		newItem := HistoryItem{
+			Regex:      regex,
+			FirstMatch: firstMatch,
+			Timestamp:  time.Now().Unix(),
+			Count:      1,
+		}
+		hv.data = append([]HistoryItem{newItem}, hv.data...)
+	}
+
+	// Trim history if it's too long
+	if len(hv.data) > MaxHistorySize {
+		hv.data = hv.data[:MaxHistorySize]
+	}
+	
+	// Refresh the filtered view
+	hv.filterHistory(hv.searchField.GetText())
+}
+
+// GetItems returns the current history items.
+func (hv *HistoryView) GetItems() []HistoryItem {
+	return hv.data
 }
 
 // SetOnSelect sets the callback function for when a regex is selected.

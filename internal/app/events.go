@@ -10,7 +10,6 @@ func (a *App) setupEventHandlers() {
 	// --- Regex Input Field specific handlers ---
 	a.regexInput.SetChangedFunc(func(text string) {
 		// Reset history navigation on manual input
-		a.historyIndex = -1
 		a.updateHighlight()
 	})
 
@@ -87,7 +86,6 @@ func (a *App) setupEventHandlers() {
 			a.app.SetFocus(a.helpView)
 			return nil
 		case tcell.KeyF3: // Show History Page
-			a.historyView.SetHistoryData(a.history) // Load current history into the view
 			a.modalPages.AddPage(HistoryPage, a.historyPageFlex, true, true)
 			a.app.SetFocus(a.historyView) // Set focus to the history view
 			return nil
