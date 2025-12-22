@@ -56,11 +56,13 @@ func (a *App) setupUI() {
 	// F1 Help Page (Keybindings)
 	a.keybindingsModal = a.createHelpModal()
 
-	// F2 Help Page (Regex)
+	// F3 Help Page (Regex)
 	a.setupHelpPage()
 
 	// F3 History Page
-	a.historyView = NewHistoryView(a)
+	a.historyView = NewHistoryView(func(p tview.Primitive) {
+		a.app.SetFocus(p)
+	})
 	a.historyView.SetOnSelect(func(regex string) {
 		a.regexInput.SetText(regex)
 		a.modalPages.RemovePage(HistoryPage) // Use modalPages

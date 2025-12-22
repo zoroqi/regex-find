@@ -14,21 +14,21 @@ type HistoryView struct {
 	table         *tview.Table
 	searchField   *tview.InputField
 	flex          *tview.Flex
-	app           *App          // Reference to the main App
-	data          []HistoryItem // Original history data
-	filteredData  []HistoryItem // Filtered history data
-	selectedRegex string        // The regex selected by the user
+	requestFocus  func(p tview.Primitive) // Callback to request application focus
+	data          []HistoryItem           // Original history data
+	filteredData  []HistoryItem           // Filtered history data
+	selectedRegex string                  // The regex selected by the user
 	onSelect      func(regex string)
 	onClose       func()
 }
 
 // NewHistoryView creates a new HistoryView.
-func NewHistoryView(app *App) *HistoryView {
+func NewHistoryView(requestFocus func(p tview.Primitive)) *HistoryView {
 	hv := &HistoryView{
-		Box:         tview.NewBox(),
-		table:       tview.NewTable().SetSelectable(true, false).SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkCyan)),
-		searchField: tview.NewInputField().SetLabel("Filter: "),
-		app:         app,
+		Box:          tview.NewBox(),
+		table:        tview.NewTable().SetSelectable(true, false).SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkCyan)),
+		searchField:  tview.NewInputField().SetLabel("Filter: "),
+		requestFocus: requestFocus,
 	}
 
 	hv.table.SetBorder(true).SetTitle(" History ")
@@ -47,7 +47,7 @@ func NewHistoryView(app *App) *HistoryView {
 	hv.searchField.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter, tcell.KeyDown:
-			hv.app.app.SetFocus(hv.table)
+			hv.requestFocus(hv.table)
 			return nil
 		case tcell.KeyEsc:
 			if hv.onClose != nil {
@@ -77,7 +77,7 @@ func NewHistoryView(app *App) *HistoryView {
 			return nil
 		case tcell.KeyUp:
 			if row, _ := hv.table.GetSelection(); row <= 1 {
-				hv.app.app.SetFocus(hv.searchField)
+				hv.requestFocus(hv.searchField)
 				return nil
 			}
 		case tcell.KeyRune:
@@ -87,7 +87,7 @@ func NewHistoryView(app *App) *HistoryView {
 			case 'k':
 				// Need to check if we're at the top to switch focus
 				if row, _ := hv.table.GetSelection(); row <= 1 {
-					hv.app.app.SetFocus(hv.searchField)
+					hv.requestFocus(hv.searchField)
 					return nil
 				}
 				return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
@@ -147,7 +147,7 @@ func (hv *HistoryView) AddItem(regex, firstMatch string) {
 	if len(hv.data) > MaxHistorySize {
 		hv.data = hv.data[:MaxHistorySize]
 	}
-	
+
 	// Refresh the filtered view
 	hv.filterHistory(hv.searchField.GetText())
 }
