@@ -14,8 +14,13 @@ import (
 const historyEnvVar = "REGEX_FIND_HISTORY_FILE"
 
 func main() {
+
 	filePath := flag.String("file", "", "Path to a file to load.")
+	flag.StringVar(filePath, "f", "", "Path to a file to load.")
+
 	useClipboard := flag.Bool("clipboard", false, "Read initial text from the system clipboard.")
+	flag.BoolVar(useClipboard, "c", false, "Read initial text from the system clipboard.")
+
 	historyFile := flag.String("history-file", "", fmt.Sprintf("Path to the history file. Overrides the %s environment variable.", historyEnvVar))
 
 	flag.Usage = func() {

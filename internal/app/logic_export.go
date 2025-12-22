@@ -1,12 +1,18 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+type exportJson struct {
+	Regex   string              `json:"regex"`
+	Matches []map[string]string `json:"matches"`
+}
 
 // GenerateExportJSONAll generates a JSON byte slice containing the regex and all matches.
 func GenerateExportJSONAll(regexStr string, matches [][]string) ([]byte, error) {
@@ -19,9 +25,9 @@ func GenerateExportJSONAll(regexStr string, matches [][]string) ([]byte, error) 
 		resultMatches = append(resultMatches, matchMap)
 	}
 
-	data := map[string]interface{}{
-		"regex":   regexStr,
-		"matches": resultMatches,
+	data := exportJson{
+		Regex:   regexStr,
+		Matches: resultMatches,
 	}
 	return json.MarshalIndent(data, "", "  ")
 }
@@ -58,17 +64,17 @@ func GenerateExportJSONGroups(regexStr string, matches [][]string, groupInput st
 		}
 	}
 
-	data := map[string]interface{}{
-		"regex":   regexStr,
-		"matches": processedMatches,
+	data := exportJson{
+		Regex:   regexStr,
+		Matches: processedMatches,
 	}
 	return json.MarshalIndent(data, "", "  ")
 }
 
 // GenerateExportCustom generates a formatted string based on a custom format string (e.g., "$1 - $2").
-func GenerateExportCustom(matches [][]string, format string) (string, error) {
+func GenerateExportCustom(matches [][]string, format string) ([]byte, error) {
 	if format == "" {
-		return "", fmt.Errorf("custom format string cannot be empty")
+		return nil, fmt.Errorf("custom format string cannot be empty")
 	}
 
 	regexGroupSeq := regexp.MustCompile(`\$(\d+)`)
@@ -77,7 +83,7 @@ func GenerateExportCustom(matches [][]string, format string) (string, error) {
 	for i, g := range regexGroup {
 		num, err := strconv.Atoi(g[1])
 		if err != nil {
-			return "", fmt.Errorf("invalid group number in format: %s", g[0])
+			return nil, fmt.Errorf("invalid group number in format: %s", g[0])
 		}
 		groupSeq[i] = num
 	}
@@ -89,7 +95,7 @@ func GenerateExportCustom(matches [][]string, format string) (string, error) {
 	// Finally, replace the $N placeholders with %s. This is safe now.
 	processedFormat := regexGroupSeq.ReplaceAllString(tempFormat, "%s")
 
-	var result strings.Builder
+	var result bytes.Buffer
 	for i, match := range matches {
 		if i > 0 {
 			result.WriteString("\n")
@@ -107,5 +113,5 @@ func GenerateExportCustom(matches [][]string, format string) (string, error) {
 		}
 		result.WriteString(fmt.Sprintf(processedFormat, args...))
 	}
-	return result.String(), nil
+	return result.Bytes(), nil
 }

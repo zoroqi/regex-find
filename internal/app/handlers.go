@@ -23,7 +23,7 @@ func (a *App) updateHighlight() {
 	_, indices, matches, err := Search(regexStr, text)
 
 	if err != nil {
-		a.highlightedView.SetText(tview.Escape(text) + "\n[red]Invalid Regular Expression")
+		a.highlightedView.SetText(fmt.Sprintf("[red]Invalid Regular Expression[-]\n%s", tview.Escape(text)))
 		a.matchView.SetText("")
 		return
 	}
@@ -36,14 +36,9 @@ func (a *App) updateHighlight() {
 	}
 
 	a.matchIndices = indices
-	a.updateHighlightedView(text, a.matchIndices)
-
 	a.matches = matches
-	if len(a.matches) > 0 {
-		a.lastMatch = a.matches[0][0]
-	} else {
-		a.lastMatch = ""
-	}
+
+	a.updateHighlightedView(text, a.matchIndices)
 	a.updateMatchView(a.matches)
 }
 
@@ -66,9 +61,7 @@ func (a *App) handleExport() {
 	case 1: // JSON (specific groups)
 		outputData, err = GenerateExportJSONGroups(a.GetRegexInput(), a.matches, groupInput)
 	case 2: // Custom format
-		var strData string
-		strData, err = GenerateExportCustom(a.matches, customFormatInput)
-		outputData = []byte(strData)
+		outputData, err = GenerateExportCustom(a.matches, customFormatInput)
 	}
 
 	if err != nil {
@@ -104,4 +97,12 @@ func (a *App) saveToFile(data []byte, path string) error {
 		return fmt.Errorf("file path cannot be empty")
 	}
 	return os.WriteFile(path, data, 0644)
+}
+
+func (a *App) lastMatch() string {
+	if len(a.matches) > 0 {
+		return a.matches[0][0]
+	} else {
+		return ""
+	}
 }

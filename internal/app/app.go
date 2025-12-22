@@ -25,17 +25,16 @@ type App struct {
 	currentMatchIndex     int        // For navigating between matches
 
 	// UI components for modal pages
-	exportForm            *tview.Form
-	historyView           *HistoryView // Instance of the history view
-	keybindingsModal      *tview.Modal
-	exportPage            *tview.Flex
-	historyPageFlex       *tview.Flex
+	exportForm       *tview.Form
+	historyView      *HistoryView // Instance of the history view
+	keybindingsModal *tview.Modal
+	exportPage       *tview.Flex
+	historyPageFlex  *tview.Flex
 
 	// History and Help state
 	historyFilePath string
 	showHelp        bool
 	showHistory     bool
-	lastMatch       string
 }
 
 // New creates and initializes a new TUI application.
@@ -99,5 +98,5 @@ func (a *App) updateHistory() {
 	if pattern == "" {
 		return
 	}
-	a.historyView.AddItem(pattern, a.lastMatch)
+	a.historyView.AddItem(pattern, a.lastMatch())
 }

@@ -36,6 +36,10 @@ func LoadHistory(path string) (History, error) {
 		return History{}, err
 	}
 
+	if len(data) == 0 {
+		return History{Patterns: []HistoryItem{}}, nil
+	}
+
 	var history History
 	if err := json.Unmarshal(data, &history); err != nil {
 		return History{}, err
@@ -53,7 +57,11 @@ func SaveHistory(path string, data History) error {
 
 	// Ensure the directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
 
