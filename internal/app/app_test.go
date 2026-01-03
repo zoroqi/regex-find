@@ -109,7 +109,7 @@ func TestGenerateExportCustom(t *testing.T) {
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
-				if result != tc.expected {
+				if string(result) != tc.expected {
 					t.Errorf("Expected result:\n---\n%s\n---\nGot:\n---\n%s\n---", tc.expected, result)
 				}
 			}

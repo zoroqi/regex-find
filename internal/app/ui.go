@@ -66,13 +66,11 @@ func (a *App) setupUI() {
 	a.historyView.SetOnSelect(func(regex string) {
 		a.regexInput.SetText(regex)
 		a.modalPages.RemovePage(HistoryPage) // Use modalPages
-		a.showHistory = false                // Update state
 		a.app.SetFocus(a.regexInput)         // Return focus to regex input
 		a.updateHighlight()                  // Trigger regex re-evaluation with selected history item
 	})
 	a.historyView.SetOnClose(func() {
 		a.modalPages.RemovePage(HistoryPage) // Use modalPages
-		a.showHistory = false                // Update state
 		a.app.SetFocus(a.regexInput)         // Return focus to regex input
 	})
 

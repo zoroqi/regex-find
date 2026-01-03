@@ -33,8 +33,6 @@ type App struct {
 
 	// History and Help state
 	historyFilePath string
-	showHelp        bool
-	showHistory     bool
 }
 
 // New creates and initializes a new TUI application.
